@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Master Class"
+description = "Plateforme interactive d’enseignement pour administrateurs, enseignants et étudiants, avec gestion des classes, modules pédagogiques et intégration des activités VittaScience."
+version = "1.0.0"
+id = "artifacts/master-class"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24686
+
+[services.development]
+run = "pnpm --filter @workspace/master-class run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/master-class", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/master-class/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24686"
+BASE_PATH = "/"

@@ -1,0 +1,2 @@
+- [Création de comptes Clerk](clerk-account-provisioning.md) — les comptes sont créés par l’administrateur; les mots de passe restent exclusivement chez Clerk.
+- [Intégration des éditeurs](editor-integration.md) — Vittascience est l’éditeur principal en iframe; le secours local assure la persistance faute d’API de synchronisation.

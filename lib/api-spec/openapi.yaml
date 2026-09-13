@@ -1,0 +1,987 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API for the Master Class education platform
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: dashboard
+    description: Admin dashboard metrics
+  - name: users
+    description: Platform user management
+  - name: classes
+    description: Class management and assignments
+  - name: modules
+    description: Learning modules and VittaScience activities
+  - name: teacher
+    description: Teacher portal operations
+  - name: student
+    description: Student portal operations
+paths:
+  /me:
+    get:
+      operationId: getCurrentUser
+      tags: [teacher]
+      summary: Get the authenticated local user
+      responses:
+        "200":
+          description: Current local user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "404":
+          description: Authenticated Clerk user is not linked to a local user
+  /teacher/classes:
+    get:
+      operationId: listTeacherClasses
+      tags: [teacher]
+      summary: List classes assigned to the current teacher
+      responses:
+        "200":
+          description: Teacher classes with assigned modules and activity counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeacherClass"
+  /teacher/classes/{classId}/activities:
+    get:
+      operationId: listTeacherClassActivities
+      tags: [teacher]
+      summary: List activities for an assigned class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      responses:
+        "200":
+          description: Teacher activities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeacherActivity"
+    post:
+      operationId: createTeacherClassActivity
+      tags: [teacher]
+      summary: Create an activity for an assigned class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherActivityInput"
+      responses:
+        "201":
+          description: Activity created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherActivity"
+  /teacher/activities/{activityId}:
+    get:
+      operationId: getTeacherActivity
+      tags: [teacher]
+      summary: Get a teacher activity
+      parameters:
+        - $ref: "#/components/parameters/ActivityId"
+      responses:
+        "200":
+          description: Teacher activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherActivity"
+    patch:
+      operationId: updateTeacherActivity
+      tags: [teacher]
+      summary: Update a teacher activity
+      parameters:
+        - $ref: "#/components/parameters/ActivityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherActivityUpdate"
+      responses:
+        "200":
+          description: Updated teacher activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherActivity"
+    delete:
+      operationId: deleteTeacherActivity
+      tags: [teacher]
+      summary: Delete a teacher activity
+      parameters:
+        - $ref: "#/components/parameters/ActivityId"
+      responses:
+        "204":
+          description: Activity deleted
+  /teacher/activities/{activityId}/submissions:
+    get:
+      operationId: listTeacherActivitySubmissions
+      tags: [teacher]
+      summary: List student submissions for a teacher activity
+      parameters:
+        - $ref: "#/components/parameters/ActivityId"
+      responses:
+        "200":
+          description: Student submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeacherActivitySubmission"
+  /student/classes:
+    get:
+      operationId: listStudentClasses
+      tags: [student]
+      summary: List classes assigned to the current student
+      responses:
+        "200":
+          description: Student classes with assigned modules and activity progress
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentClass"
+  /student/classes/{classId}/activities:
+    get:
+      operationId: listStudentClassActivities
+      tags: [student]
+      summary: List activities available to a student in a class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      responses:
+        "200":
+          description: Activities and the current student's submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentActivity"
+  /student/activities/{activityId}:
+    get:
+      operationId: getStudentActivity
+      tags: [student]
+      summary: Get an activity and the current student's work
+      parameters:
+        - $ref: "#/components/parameters/ActivityId"
+      responses:
+        "200":
+          description: Activity and the current student's submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentActivity"
+  /student/activities/{activityId}/submission:
+    put:
+      operationId: saveStudentSubmission
+      tags: [student]
+      summary: Save or submit the current student's work
+      parameters:
+        - $ref: "#/components/parameters/ActivityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentSubmissionInput"
+      responses:
+        "200":
+          description: Saved student submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentSubmission"
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get the admin dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List platform users
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - name: role
+          in: query
+          schema:
+            $ref: "#/components/schemas/UserRole"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/UserStatus"
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a platform user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /users/{userId}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a platform user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a platform user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: User deleted
+  /users/{userId}/password:
+    patch:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Set a new password for a platform user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPasswordUpdate"
+      responses:
+        "200":
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordUpdateResult"
+        "404":
+          description: User not found
+  /classes:
+    get:
+      operationId: listClasses
+      tags: [classes]
+      summary: List classes
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ClassStatus"
+      responses:
+        "200":
+          description: Classes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Class"
+    post:
+      operationId: createClass
+      tags: [classes]
+      summary: Create a class
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassInput"
+      responses:
+        "201":
+          description: Class created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Class"
+  /classes/{classId}:
+    patch:
+      operationId: updateClass
+      tags: [classes]
+      summary: Update a class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassUpdate"
+      responses:
+        "200":
+          description: Updated class
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Class"
+    delete:
+      operationId: deleteClass
+      tags: [classes]
+      summary: Delete a class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      responses:
+        "204":
+          description: Class deleted
+  /classes/{classId}/assignments:
+    get:
+      operationId: getClassAssignments
+      tags: [classes]
+      summary: Get all assignments for a class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      responses:
+        "200":
+          description: Class assignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassAssignments"
+  /classes/{classId}/teacher:
+    put:
+      operationId: assignClassTeacher
+      tags: [classes]
+      summary: Assign a teacher to a class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherAssignmentInput"
+      responses:
+        "200":
+          description: Updated class assignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassAssignments"
+  /classes/{classId}/modules:
+    put:
+      operationId: assignClassModules
+      tags: [classes]
+      summary: Assign modules to a class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModulesAssignmentInput"
+      responses:
+        "200":
+          description: Updated class assignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassAssignments"
+  /classes/{classId}/students:
+    put:
+      operationId: assignClassStudents
+      tags: [classes]
+      summary: Assign students to a class
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentsAssignmentInput"
+      responses:
+        "200":
+          description: Updated class assignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassAssignments"
+  /modules:
+    get:
+      operationId: listModules
+      tags: [modules]
+      summary: List learning modules and their VittaScience activities
+      responses:
+        "200":
+          description: Learning modules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Module"
+components:
+  parameters:
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+    ClassId:
+      name: classId
+      in: path
+      required: true
+      schema:
+        type: integer
+    ActivityId:
+      name: activityId
+      in: path
+      required: true
+      schema:
+        type: integer
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    UserRole:
+      type: string
+      enum: [admin, teacher, student]
+    UserStatus:
+      type: string
+      enum: [active, invited, suspended]
+    ClassStatus:
+      type: string
+      enum: [active, draft, archived]
+    User:
+      type: object
+      required: [id, name, email, role, status, classesCount, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        status:
+          $ref: "#/components/schemas/UserStatus"
+        avatar:
+          type: ["string", "null"]
+        classesCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    CurrentUser:
+      type: object
+      required: [id, clerkUserId, name, email, role, status, createdAt]
+      properties:
+        id:
+          type: integer
+        clerkUserId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        status:
+          $ref: "#/components/schemas/UserStatus"
+        avatar:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+    UserInput:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name:
+          type: string
+          minLength: 2
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          writeOnly: true
+        role:
+          $ref: "#/components/schemas/UserRole"
+        status:
+          $ref: "#/components/schemas/UserStatus"
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        status:
+          $ref: "#/components/schemas/UserStatus"
+    UserPasswordUpdate:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 8
+          writeOnly: true
+        signOutOfOtherSessions:
+          type: boolean
+          default: true
+    PasswordUpdateResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+    Class:
+      type: object
+      required: [id, name, level, academicYear, status, studentCount, moduleCount, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        level:
+          type: string
+        academicYear:
+          type: string
+        status:
+          $ref: "#/components/schemas/ClassStatus"
+        teacher:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        studentCount:
+          type: integer
+        moduleCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    ClassInput:
+      type: object
+      required: [name, level, academicYear]
+      properties:
+        name:
+          type: string
+          minLength: 2
+        level:
+          type: string
+        academicYear:
+          type: string
+        status:
+          $ref: "#/components/schemas/ClassStatus"
+    ClassUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+        level:
+          type: string
+        academicYear:
+          type: string
+        status:
+          $ref: "#/components/schemas/ClassStatus"
+    Module:
+      type: object
+      required: [id, slug, name, shortDescription, color, activityCount, editorUrl, repositoryUrl]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        shortDescription:
+          type: string
+        color:
+          type: string
+        activityCount:
+          type: integer
+        editorUrl:
+          type: string
+          format: uri
+        repositoryUrl:
+          type: string
+          format: uri
+    TeacherClass:
+      type: object
+      required: [id, name, level, academicYear, status, modules, activityCount, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        level:
+          type: string
+        academicYear:
+          type: string
+        status:
+          $ref: "#/components/schemas/ClassStatus"
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/Module"
+        activityCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    EditorMode:
+      type: string
+      enum: [block, code]
+    TeacherActivity:
+      type: object
+      required: [id, classId, moduleId, createdByUserId, title, instructions, editorMode, blockXml, sourceCode, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        classId:
+          type: integer
+        moduleId:
+          type: integer
+        createdByUserId:
+          type: integer
+        title:
+          type: string
+        instructions:
+          type: string
+        editorMode:
+          $ref: "#/components/schemas/EditorMode"
+        blockXml:
+          type: string
+        sourceCode:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TeacherActivityInput:
+      type: object
+      required: [moduleId, title, instructions, editorMode]
+      properties:
+        moduleId:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+        instructions:
+          type: string
+        editorMode:
+          $ref: "#/components/schemas/EditorMode"
+        blockXml:
+          type: string
+        sourceCode:
+          type: string
+    TeacherActivityUpdate:
+      type: object
+      properties:
+        moduleId:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+        instructions:
+          type: string
+        editorMode:
+          $ref: "#/components/schemas/EditorMode"
+        blockXml:
+          type: string
+        sourceCode:
+          type: string
+    SubmissionStatus:
+      type: string
+      enum: [draft, submitted]
+    StudentSubmission:
+      type: object
+      required: [id, activityId, studentId, editorMode, blockXml, sourceCode, status, updatedAt]
+      properties:
+        id:
+          type: integer
+        activityId:
+          type: integer
+        studentId:
+          type: integer
+        editorMode:
+          $ref: "#/components/schemas/EditorMode"
+        blockXml:
+          type: string
+        sourceCode:
+          type: string
+        status:
+          $ref: "#/components/schemas/SubmissionStatus"
+        submittedAt:
+          type: ["string", "null"]
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    StudentActivity:
+      type: object
+      required: [id, classId, moduleId, title, instructions, editorMode, blockXml, sourceCode, module, submission, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        classId:
+          type: integer
+        moduleId:
+          type: integer
+        title:
+          type: string
+        instructions:
+          type: string
+        editorMode:
+          $ref: "#/components/schemas/EditorMode"
+        blockXml:
+          type: string
+        sourceCode:
+          type: string
+        module:
+          $ref: "#/components/schemas/Module"
+        submission:
+          oneOf:
+            - $ref: "#/components/schemas/StudentSubmission"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    StudentClass:
+      type: object
+      required: [id, name, level, academicYear, status, modules, activityCount, submittedCount, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        level:
+          type: string
+        academicYear:
+          type: string
+        status:
+          $ref: "#/components/schemas/ClassStatus"
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/Module"
+        activityCount:
+          type: integer
+        submittedCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    StudentSubmissionInput:
+      type: object
+      required: [editorMode, status]
+      properties:
+        editorMode:
+          $ref: "#/components/schemas/EditorMode"
+        blockXml:
+          type: string
+        sourceCode:
+          type: string
+        status:
+          $ref: "#/components/schemas/SubmissionStatus"
+    TeacherActivitySubmission:
+      type: object
+      required: [id, activityId, studentId, studentName, studentEmail, editorMode, blockXml, sourceCode, status, updatedAt]
+      properties:
+        id:
+          type: integer
+        activityId:
+          type: integer
+        studentId:
+          type: integer
+        studentName:
+          type: string
+        studentEmail:
+          type: string
+          format: email
+        editorMode:
+          $ref: "#/components/schemas/EditorMode"
+        blockXml:
+          type: string
+        sourceCode:
+          type: string
+        status:
+          $ref: "#/components/schemas/SubmissionStatus"
+        submittedAt:
+          type: ["string", "null"]
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AssignedUser:
+      type: object
+      required: [id, name, email]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    ClassAssignments:
+      type: object
+      required: [classId, teacher, students, modules]
+      properties:
+        classId:
+          type: integer
+        teacher:
+          type: ["object", "null"]
+          $ref: "#/components/schemas/AssignedUser"
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssignedUser"
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/Module"
+    TeacherAssignmentInput:
+      type: object
+      required: [teacherId]
+      properties:
+        teacherId:
+          type: integer
+    ModulesAssignmentInput:
+      type: object
+      required: [moduleIds]
+      properties:
+        moduleIds:
+          type: array
+          items:
+            type: integer
+    StudentsAssignmentInput:
+      type: object
+      required: [studentIds]
+      properties:
+        studentIds:
+          type: array
+          items:
+            type: integer
+    Activity:
+      type: object
+      required: [id, title, type, time, status]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        time:
+          type: string
+        status:
+          type: string
+    DashboardSummary:
+      type: object
+      required: [totalUsers, totalStudents, totalTeachers, totalClasses, totalModules, activeClasses, recentActivity]
+      properties:
+        totalUsers:
+          type: integer
+        totalStudents:
+          type: integer
+        totalTeachers:
+          type: integer
+        totalClasses:
+          type: integer
+        totalModules:
+          type: integer
+        activeClasses:
+          type: integer
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
+
