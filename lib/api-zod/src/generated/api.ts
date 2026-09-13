@@ -16,7 +16,7 @@ export const GetCurrentUserResponse = zod.object({
   "clerkUserId": zod.string(),
   "name": zod.string(),
   "email": zod.string().email(),
-  "role": zod.enum(['admin', 'teacher', 'student']),
+  "role": zod.enum(['superadmin', 'admin', 'teacher', 'student']),
   "status": zod.enum(['active', 'invited', 'suspended']),
   "avatar": zod.string().nullish(),
   "createdAt": zod.coerce.date()
@@ -366,7 +366,7 @@ export const GetDashboardSummaryResponse = zod.object({
  */
 export const ListUsersQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
-  "role": zod.enum(['admin', 'teacher', 'student']).optional(),
+  "role": zod.enum(['superadmin', 'admin', 'teacher', 'student']).optional(),
   "status": zod.enum(['active', 'invited', 'suspended']).optional()
 })
 
@@ -374,7 +374,7 @@ export const ListUsersResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "email": zod.string().email(),
-  "role": zod.enum(['admin', 'teacher', 'student']),
+  "role": zod.enum(['superadmin', 'admin', 'teacher', 'student']),
   "status": zod.enum(['active', 'invited', 'suspended']),
   "avatar": zod.string().nullish(),
   "classesCount": zod.number().int(),
@@ -396,7 +396,7 @@ export const CreateUserBody = zod.object({
   "name": zod.string().min(createUserBodyNameMin),
   "email": zod.string().email(),
   "password": zod.string().min(createUserBodyPasswordMin),
-  "role": zod.enum(['admin', 'teacher', 'student']),
+  "role": zod.enum(['superadmin', 'admin', 'teacher', 'student']),
   "status": zod.enum(['active', 'invited', 'suspended']).optional()
 })
 
@@ -404,7 +404,7 @@ export const CreateUserResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "email": zod.string().email(),
-  "role": zod.enum(['admin', 'teacher', 'student']),
+  "role": zod.enum(['superadmin', 'admin', 'teacher', 'student']),
   "status": zod.enum(['active', 'invited', 'suspended']),
   "avatar": zod.string().nullish(),
   "classesCount": zod.number().int(),
@@ -426,7 +426,7 @@ export const updateUserBodyNameMin = 2;
 export const UpdateUserBody = zod.object({
   "name": zod.string().min(updateUserBodyNameMin).optional(),
   "email": zod.string().email().optional(),
-  "role": zod.enum(['admin', 'teacher', 'student']).optional(),
+  "role": zod.enum(['superadmin', 'admin', 'teacher', 'student']).optional(),
   "status": zod.enum(['active', 'invited', 'suspended']).optional()
 })
 
@@ -434,7 +434,7 @@ export const UpdateUserResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "email": zod.string().email(),
-  "role": zod.enum(['admin', 'teacher', 'student']),
+  "role": zod.enum(['superadmin', 'admin', 'teacher', 'student']),
   "status": zod.enum(['active', 'invited', 'suspended']),
   "avatar": zod.string().nullish(),
   "classesCount": zod.number().int(),

@@ -514,7 +514,7 @@ components:
         - status
     UserRole:
       type: string
-      enum: [admin, teacher, student]
+      enum: [superadmin, admin, teacher, student]
     UserStatus:
       type: string
       enum: [active, invited, suspended]

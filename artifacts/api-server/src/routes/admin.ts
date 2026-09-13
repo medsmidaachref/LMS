@@ -44,7 +44,7 @@ import {
   UpdateUserParams,
   UpdateUserResponse,
 } from "@workspace/api-zod";
-import { resolveCurrentLocalUser } from "../lib/localAuth";
+import { resolveCurrentLocalUser, type LocalUser } from "../lib/localAuth";
 
 const router: IRouter = Router();
 
@@ -70,7 +70,7 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction): Pr
     res.status(502).json({ error: "Unable to verify the Clerk account." });
     return;
   }
-  if (resolution.user.role !== "admin" || resolution.user.status !== "active") {
+  if (!["admin", "superadmin"].includes(resolution.user.role) || resolution.user.status !== "active") {
     req.log.warn(
       { event: "admin_authorization_failed", reason: "wrong_or_inactive_role", localUserId: resolution.user.id },
       "Admin authorization failed",
@@ -78,7 +78,41 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction): Pr
     res.status(403).json({ error: "An active administrator account is required." });
     return;
   }
+  res.locals.localUser = resolution.user;
   next();
+}
+
+function currentAdmin(res: Response): LocalUser {
+  return res.locals.localUser as LocalUser;
+}
+
+function canManageUser(actor: LocalUser, target: Pick<LocalUser, "id" | "role" | "managedByAdminId">): boolean {
+  if (actor.role === "superadmin") return target.role === "admin";
+  return target.managedByAdminId === actor.id && ["teacher", "student"].includes(target.role);
+}
+
+async function getManagedUser(userId: number, actor: LocalUser) {
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+  if (!user || !canManageUser(actor, user)) return null;
+  return user;
+}
+
+async function requireOwnedClass(classId: number, actor: LocalUser, res: Response): Promise<boolean> {
+  if (actor.role === "superadmin") return true;
+  const [classRow] = await db
+    .select({ id: classesTable.id })
+    .from(classesTable)
+    .where(and(eq(classesTable.id, classId), eq(classesTable.adminId, actor.id)))
+    .limit(1);
+  if (!classRow) {
+    res.status(404).json({ error: "Class not found or not managed by this administrator." });
+    return false;
+  }
+  return true;
 }
 
 function parseId(value: string | string[] | undefined): number | null {
@@ -135,6 +169,11 @@ async function classAssignments(classId: number) {
 router.use(requireAdmin);
 
 router.get("/dashboard", async (_req, res): Promise<void> => {
+  const actor = currentAdmin(res);
+  const managedUsersFilter = actor.role === "admin" ? eq(usersTable.managedByAdminId, actor.id) : undefined;
+  const studentFilter = managedUsersFilter ? and(managedUsersFilter, eq(usersTable.role, "student")) : eq(usersTable.role, "student");
+  const teacherFilter = managedUsersFilter ? and(managedUsersFilter, eq(usersTable.role, "teacher")) : eq(usersTable.role, "teacher");
+  const classFilter = actor.role === "admin" ? eq(classesTable.adminId, actor.id) : undefined;
   const [
     totalUsersRows,
     totalStudentsRows,
@@ -144,10 +183,10 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     activeClassesRows,
     recentActivity,
   ] = await Promise.all([
-    db.select({ value: count() }).from(usersTable),
-    db.select({ value: count() }).from(usersTable).where(eq(usersTable.role, "student")),
-    db.select({ value: count() }).from(usersTable).where(eq(usersTable.role, "teacher")),
-    db.select({ value: count() }).from(classesTable),
+    db.select({ value: count() }).from(usersTable).where(managedUsersFilter),
+    db.select({ value: count() }).from(usersTable).where(studentFilter),
+    db.select({ value: count() }).from(usersTable).where(teacherFilter),
+    db.select({ value: count() }).from(classesTable).where(classFilter),
     db.select({ value: count() }).from(modulesTable),
     db.select({ value: count() }).from(classesTable).where(eq(classesTable.status, "active")),
     db
@@ -183,11 +222,17 @@ router.get("/users", async (req, res): Promise<void> => {
     return;
   }
 
+  const actor = currentAdmin(res);
   const filters = [];
   if (parsed.data.search) {
     filters.push(or(ilike(usersTable.name, `%${parsed.data.search}%`), ilike(usersTable.email, `%${parsed.data.search}%`)));
   }
-  if (parsed.data.role) filters.push(eq(usersTable.role, parsed.data.role));
+  if (actor.role === "superadmin") {
+    filters.push(eq(usersTable.role, "admin"));
+  } else {
+    filters.push(inArray(usersTable.role, ["teacher", "student"]));
+    filters.push(eq(usersTable.managedByAdminId, actor.id));
+  }
   if (parsed.data.status) filters.push(eq(usersTable.status, parsed.data.status));
 
   const rows = await db
@@ -219,8 +264,16 @@ router.post("/users", async (req, res): Promise<void> => {
     return;
   }
 
+  const actor = currentAdmin(res);
   const { password, ...rawProfile } = parsed.data;
   const profile = { ...rawProfile, email: normalizeEmail(rawProfile.email) };
+  const allowedRole = actor.role === "superadmin"
+    ? profile.role === "admin"
+    : ["teacher", "student"].includes(profile.role);
+  if (!allowedRole) {
+    res.status(403).json({ error: actor.role === "superadmin" ? "A super administrator can only create administrator accounts." : "An administrator can only create teacher or student accounts." });
+    return;
+  }
   const existing = await db
     .select({ id: usersTable.id })
     .from(usersTable)
@@ -242,7 +295,11 @@ router.post("/users", async (req, res): Promise<void> => {
 
     const [user] = await db
       .insert(usersTable)
-      .values({ ...profile, clerkUserId })
+      .values({
+        ...profile,
+        clerkUserId,
+        managedByAdminId: actor.role === "admin" ? actor.id : null,
+      })
       .returning();
 
     res.status(201).json(CreateUserResponse.parse({ ...user, classesCount: 0 }));
@@ -267,6 +324,16 @@ router.patch("/users/:userId", async (req, res): Promise<void> => {
   }
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const actor = currentAdmin(res);
+  const target = await getManagedUser(params.data.userId, actor);
+  if (!target) {
+    res.status(404).json({ error: "User not found or not managed by this administrator." });
+    return;
+  }
+  if (body.data.role && (actor.role === "superadmin" ? body.data.role !== "admin" : !["teacher", "student"].includes(body.data.role))) {
+    res.status(403).json({ error: "You cannot assign this role." });
     return;
   }
   const changes = body.data.email
@@ -307,13 +374,11 @@ router.patch("/users/:userId/password", async (req, res): Promise<void> => {
     return;
   }
 
-  const [user] = await db
-    .select({ id: usersTable.id, clerkUserId: usersTable.clerkUserId })
-    .from(usersTable)
-    .where(eq(usersTable.id, params.data.userId))
-    .limit(1);
+  const actor = currentAdmin(res);
+  const managedUser = await getManagedUser(params.data.userId, actor);
+  const user = managedUser ? { id: managedUser.id, clerkUserId: managedUser.clerkUserId } : undefined;
   if (!user) {
-    res.status(404).json({ error: "User not found" });
+    res.status(404).json({ error: "User not found or not managed by this administrator." });
     return;
   }
   if (!user.clerkUserId) {
@@ -344,7 +409,13 @@ router.delete("/users/:userId", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [user] = await db.delete(usersTable).where(eq(usersTable.id, params.data.userId)).returning();
+  const actor = currentAdmin(res);
+  const target = await getManagedUser(params.data.userId, actor);
+  if (!target) {
+    res.status(404).json({ error: "User not found or not managed by this administrator." });
+    return;
+  }
+  const [user] = await db.delete(usersTable).where(eq(usersTable.id, target.id)).returning();
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
@@ -358,9 +429,11 @@ router.get("/classes", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const actor = currentAdmin(res);
   const filters = [];
   if (parsed.data.search) filters.push(ilike(classesTable.name, `%${parsed.data.search}%`));
   if (parsed.data.status) filters.push(eq(classesTable.status, parsed.data.status));
+  if (actor.role === "admin") filters.push(eq(classesTable.adminId, actor.id));
   const rows = await db
     .select()
     .from(classesTable)
@@ -398,7 +471,11 @@ router.post("/classes", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [classRow] = await db.insert(classesTable).values(parsed.data).returning();
+  const actor = currentAdmin(res);
+  const [classRow] = await db.insert(classesTable).values({
+    ...parsed.data,
+    adminId: actor.role === "admin" ? actor.id : null,
+  }).returning();
   res.status(201).json(
     CreateClassResponse.parse({
       ...classRow,
@@ -420,6 +497,8 @@ router.patch("/classes/:classId", async (req, res): Promise<void> => {
     res.status(400).json({ error: body.error.message });
     return;
   }
+  const actor = currentAdmin(res);
+  if (!(await requireOwnedClass(params.data.classId, actor, res))) return;
   const [classRow] = await db
     .update(classesTable)
     .set(body.data)
@@ -445,6 +524,8 @@ router.delete("/classes/:classId", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const actor = currentAdmin(res);
+  if (!(await requireOwnedClass(params.data.classId, actor, res))) return;
   await db.delete(classStudentsTable).where(eq(classStudentsTable.classId, params.data.classId));
   await db.delete(classModulesTable).where(eq(classModulesTable.classId, params.data.classId));
   const [classRow] = await db.delete(classesTable).where(eq(classesTable.id, params.data.classId)).returning();
@@ -461,6 +542,8 @@ router.get("/classes/:classId/assignments", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const actor = currentAdmin(res);
+  if (!(await requireOwnedClass(params.data.classId, actor, res))) return;
   const assignments = await classAssignments(params.data.classId);
   if (!assignments) {
     res.status(404).json({ error: "Class not found" });
@@ -480,10 +563,13 @@ router.put("/classes/:classId/teacher", async (req, res): Promise<void> => {
     res.status(400).json({ error: body.error.message });
     return;
   }
+  const actor = currentAdmin(res);
+  if (!(await requireOwnedClass(params.data.classId, actor, res))) return;
+  const teacherScope = actor.role === "admin" ? eq(usersTable.managedByAdminId, actor.id) : undefined;
   const [teacher] = await db
     .select({ id: usersTable.id })
     .from(usersTable)
-    .where(and(eq(usersTable.id, body.data.teacherId), eq(usersTable.role, "teacher")));
+    .where(and(eq(usersTable.id, body.data.teacherId), eq(usersTable.role, "teacher"), teacherScope));
   if (!teacher) {
     res.status(400).json({ error: "A teacher user is required" });
     return;
@@ -508,6 +594,8 @@ router.put("/classes/:classId/modules", async (req, res): Promise<void> => {
     res.status(400).json({ error: body.error.message });
     return;
   }
+  const actor = currentAdmin(res);
+  if (!(await requireOwnedClass(params.data.classId, actor, res))) return;
   const existing = await db.select({ id: modulesTable.id }).from(modulesTable).where(inArray(modulesTable.id, body.data.moduleIds));
   if (existing.length !== body.data.moduleIds.length) {
     res.status(400).json({ error: "One or more modules do not exist" });
@@ -538,7 +626,10 @@ router.put("/classes/:classId/students", async (req, res): Promise<void> => {
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(and(inArray(usersTable.id, body.data.studentIds), eq(usersTable.role, "student")));
+  const actor = currentAdmin(res);
+  if (!(await requireOwnedClass(params.data.classId, actor, res))) return;
+  const studentScope = actor.role === "admin" ? eq(usersTable.managedByAdminId, actor.id) : undefined;
+  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(and(inArray(usersTable.id, body.data.studentIds), eq(usersTable.role, "student"), studentScope));
   if (existing.length !== body.data.studentIds.length) {
     res.status(400).json({ error: "One or more students do not exist" });
     return;

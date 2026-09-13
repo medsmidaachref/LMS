@@ -8,7 +8,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import Landing from '@/pages/landing';
-import { AdminShell, ClassDetailPage, ClassesPage, ModulesPage, Overview, UsersPage } from '@/pages/admin';
+import { AdminShell, ClassDetailPage, ClassesPage, ModulesPage, Overview, SuperAdminShell, UsersPage } from '@/pages/admin';
 import {
   Redirect,
   Route,
@@ -97,6 +97,7 @@ function UserRoleRedirect() {
   }
   if (user.role === 'teacher') return <Redirect to="/teacher" />;
   if (user.role === 'admin') return <Redirect to="/admin" />;
+  if (user.role === 'superadmin') return <Redirect to="/superadmin" />;
   if (user.role === 'student') return <StudentShell><StudentClassesPage /></StudentShell>;
   return <div className="grid min-h-[100dvh] place-items-center px-4"><div className="max-w-md text-center"><h2 className="text-xl font-semibold">Espace étudiant</h2><p className="mt-2 text-muted-foreground">Votre profil ne possède pas encore d’espace disponible.</p></div></div>;
 }
@@ -112,6 +113,11 @@ function HomeRedirect() {
 function AdminRoute({ children }: { children: ReactNode }) {
   const { data: user, isLoading } = useGetCurrentUser();
   return <><Show when="signed-in">{isLoading ? <div className="grid min-h-[100dvh] place-items-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div> : (!user || user.role !== 'admin') ? <Redirect to="/" /> : <AdminShell>{children}</AdminShell>}</Show><Show when="signed-out"><Redirect to="/" /></Show></>;
+}
+
+function SuperAdminRoute({ children }: { children: ReactNode }) {
+  const { data: user, isLoading } = useGetCurrentUser();
+  return <><Show when="signed-in">{isLoading ? <div className="grid min-h-[100dvh] place-items-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div> : (!user || user.role !== 'superadmin') ? <Redirect to="/" /> : <SuperAdminShell>{children}</SuperAdminShell>}</Show><Show when="signed-out"><Redirect to="/" /></Show></>;
 }
 
 function TeacherRoute({ children }: { children: ReactNode }) {
@@ -133,6 +139,8 @@ function Router() {
         <Route path="/admin/classes/:id"><AdminRoute><ClassDetailPage /></AdminRoute></Route>
         <Route path="/admin/classes"><AdminRoute><ClassesPage /></AdminRoute></Route>
         <Route path="/admin/modules"><AdminRoute><ModulesPage /></AdminRoute></Route>
+        <Route path="/superadmin"><SuperAdminRoute><UsersPage scope="superadmin" /></SuperAdminRoute></Route>
+        <Route path="/superadmin/admins"><SuperAdminRoute><UsersPage scope="superadmin" /></SuperAdminRoute></Route>
         <Route path="/teacher"><TeacherRoute><TeacherClassesPage /></TeacherRoute></Route>
         <Route path="/teacher/classes/:id"><TeacherRoute><TeacherClassDetailPage /></TeacherRoute></Route>
         <Route path="/teacher/activities/:id"><TeacherRoute><TeacherActivityPage /></TeacherRoute></Route>

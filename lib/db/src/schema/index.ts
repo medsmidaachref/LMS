@@ -35,6 +35,7 @@ export const usersTable = pgTable(
   {
     id: serial("id").primaryKey(),
     clerkUserId: text("clerk_user_id").unique(),
+    managedByAdminId: integer("managed_by_admin_id"),
     name: text("name").notNull(),
     email: text("email").notNull().unique(),
     role: text("role").notNull().default("student"),
@@ -47,6 +48,7 @@ export const usersTable = pgTable(
 
 export const classesTable = pgTable("classes", {
   id: serial("id").primaryKey(),
+  adminId: integer("admin_id"),
   name: text("name").notNull(),
   level: text("level").notNull(),
   academicYear: text("academic_year").notNull(),
@@ -98,6 +100,7 @@ export const teacherActivitiesTable = pgTable("teacher_activities", {
   classId: integer("class_id").notNull(),
   moduleId: integer("module_id").notNull(),
   createdByUserId: integer("created_by_user_id").notNull(),
+  vittascienceProjectLink: text("vittascience_project_link"),
   title: text("title").notNull(),
   instructions: text("instructions").notNull(),
   editorMode: text("editor_mode").notNull(),

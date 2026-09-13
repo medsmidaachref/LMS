@@ -31,7 +31,7 @@ export default function Landing() {
             <Link href="/sign-in" className="group inline-flex items-center gap-3 rounded-xl bg-primary px-5 py-3.5 font-semibold text-primary-foreground shadow-[0_8px_0_hsl(10_57%_48%)] transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_0_hsl(10_57%_48%)] active:translate-y-0 active:shadow-[0_4px_0_hsl(10_57%_48%)]" data-testid="button-start">
               Accéder à votre espace <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
             </Link>
-            <span className="text-sm text-muted-foreground">Pour les administrateurs, enseignants et étudiants</span>
+            <span className="text-sm text-muted-foreground">Pour les enseignants et étudiants</span>
           </div>
         </div>
 

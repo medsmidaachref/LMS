@@ -14,3 +14,9 @@ La modification administrative d’un mot de passe passe par une action serveur 
 **Why:** Clerk ne permet pas de consulter les mots de passe existants; séparer l’action de réinitialisation de la mise à jour du profil réduit le risque de fuite et permet de gérer explicitement les erreurs de politique de mot de passe.
 
 **How to apply:** Vérifier l’association `clerkUserId` avant l’appel Clerk, valider au moins huit caractères côté contrat et interface, et révoquer les autres sessions par défaut.
+
+Une adresse e-mail locale ne doit pas rester liée à une ancienne identité Clerk si l’utilisateur se reconnecte avec une autre identité vérifiée; détacher l’ancien `clerkUserId` permet la liaison JIT sécurisée au compte courant.
+
+**Why:** La résolution locale refuse volontairement les conflits d’association au lieu de choisir arbitrairement entre plusieurs identités Clerk portant la même adresse.
+
+**How to apply:** Lors d’un changement ou d’une récupération de compte, vérifier les conflits d’identité, conserver le profil local unique, puis laisser la prochaine requête authentifiée établir la nouvelle liaison.

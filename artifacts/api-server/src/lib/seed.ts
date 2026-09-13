@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+import { clerkClient } from "@clerk/express";
 import {
   activitiesTable,
   classesTable,
@@ -7,6 +9,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { db } from "@workspace/db";
+import { logger } from "./logger";
 
 const modules = [
   ["thymio", "Thymio", "Robotique créative et programmation par blocs.", "#F4B740", 12],
@@ -17,25 +20,71 @@ const modules = [
   ["ia", "IA", "Comprendre et expérimenter l’intelligence artificielle.", "#F2994A", 10],
   ["micro-bit", "micro:bit", "Projets physiques et découverte du code.", "#56CCF2", 15],
 ] as const;
+const bootstrapSuperAdminEmail = "superadmin@masterclass.tn";
+
+async function ensureBootstrapSuperAdmin(): Promise<void> {
+  const [profile] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.role, "superadmin"))
+    .limit(1);
+  const initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
+  if (
+    !profile ||
+    profile.email.toLowerCase() !== bootstrapSuperAdminEmail ||
+    profile.clerkUserId ||
+    !initialPassword
+  ) return;
+
+  try {
+    const existingClerkUsers = await clerkClient.users.getUserList({
+      emailAddress: [profile.email],
+      limit: 1,
+    });
+    const clerkUser = existingClerkUsers.data[0] ?? await clerkClient.users.createUser({
+      emailAddress: [profile.email],
+      password: initialPassword,
+      firstName: profile.name,
+    });
+    await db
+      .update(usersTable)
+      .set({ clerkUserId: clerkUser.id })
+      .where(eq(usersTable.id, profile.id));
+    logger.info({ localUserId: profile.id }, "Bootstrap super administrator linked to Clerk");
+  } catch (error) {
+    logger.warn({ err: error, localUserId: profile.id }, "Unable to link bootstrap super administrator");
+  }
+}
 
 export async function ensureSeedData(): Promise<void> {
   const existingUsers = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
   if (existingUsers.length > 0) {
+    await ensureBootstrapSuperAdmin();
     return;
   }
 
-  const [admin, teacherOne, teacherTwo, studentOne, studentTwo, studentThree] =
-    await db
-      .insert(usersTable)
-      .values([
-        { name: "Nadia Ben Salem", email: "nadia@masterclass.tn", role: "admin", status: "active" },
-        { name: "Yassine Trabelsi", email: "yassine@masterclass.tn", role: "teacher", status: "active" },
-        { name: "Amel Gharbi", email: "amel@masterclass.tn", role: "teacher", status: "active" },
-        { name: "Adam Mansour", email: "adam@masterclass.tn", role: "student", status: "active" },
-        { name: "Lina Jlassi", email: "lina@masterclass.tn", role: "student", status: "active" },
-        { name: "Rayen Kallel", email: "rayen@masterclass.tn", role: "student", status: "invited" },
-      ])
-      .returning();
+  await db.insert(usersTable).values({
+    name: "Super administrateur",
+    email: "superadmin@masterclass.tn",
+    role: "superadmin",
+    status: "active",
+  });
+
+  const [admin] = await db
+    .insert(usersTable)
+    .values({ name: "Nadia Ben Salem", email: "nadia@masterclass.tn", role: "admin", status: "active" })
+    .returning();
+
+  const [teacherOne, teacherTwo, studentOne, studentTwo, studentThree] = await db
+    .insert(usersTable)
+    .values([
+      { name: "Yassine Trabelsi", email: "yassine@masterclass.tn", role: "teacher", status: "active", managedByAdminId: admin.id },
+      { name: "Amel Gharbi", email: "amel@masterclass.tn", role: "teacher", status: "active", managedByAdminId: admin.id },
+      { name: "Adam Mansour", email: "adam@masterclass.tn", role: "student", status: "active", managedByAdminId: admin.id },
+      { name: "Lina Jlassi", email: "lina@masterclass.tn", role: "student", status: "active", managedByAdminId: admin.id },
+      { name: "Rayen Kallel", email: "rayen@masterclass.tn", role: "student", status: "invited", managedByAdminId: admin.id },
+    ])
+    .returning();
 
   const insertedModules = await db
     .insert(modulesTable)
@@ -56,6 +105,7 @@ export async function ensureSeedData(): Promise<void> {
     .insert(classesTable)
     .values([
       {
+        adminId: admin.id,
         name: "Explorateurs du numérique",
         level: "Collège · 5e",
         academicYear: "2025–2026",
@@ -63,6 +113,7 @@ export async function ensureSeedData(): Promise<void> {
         teacherId: teacherOne.id,
       },
       {
+        adminId: admin.id,
         name: "Créateurs de demain",
         level: "Lycée · 2nde",
         academicYear: "2025–2026",
@@ -70,6 +121,7 @@ export async function ensureSeedData(): Promise<void> {
         teacherId: teacherTwo.id,
       },
       {
+        adminId: admin.id,
         name: "Laboratoire découverte",
         level: "Primaire · CM2",
         academicYear: "2025–2026",
@@ -101,6 +153,8 @@ export async function ensureSeedData(): Promise<void> {
     { title: "Module Python ajouté au catalogue", type: "Module", time: "Hier, 11:05", status: "success" },
     { title: "Invitation envoyée à Rayen Kallel", type: "Utilisateur", time: "12 sept., 14:30", status: "pending" },
   ]);
+
+  await ensureBootstrapSuperAdmin();
 
   // Keep the seed import explicit so tree-shaking never removes it during builds.
   void admin;
