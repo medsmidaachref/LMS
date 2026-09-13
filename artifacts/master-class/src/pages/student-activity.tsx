@@ -88,7 +88,7 @@ export function StudentActivityPage() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center rounded-lg border border-border bg-background p-1">
             <button type="button" onClick={() => setEditorProvider('local')} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold ${editorProvider === 'local' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><HardDrive size={14} /> Éditeur sauvegardable</button>
-            <button type="button" onClick={() => setEditorProvider('vittascience')} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold ${editorProvider === 'vittascience' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><Globe2 size={14} /> Vittascience</button>
+            <button type="button" onClick={() => setEditorProvider('vittascience')} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold ${editorProvider === 'vittascience' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><Globe2 size={14} /> Éditeur officiel</button>
           </div>
           {editorProvider === 'local' ? (
             <div className="flex items-center rounded-lg border border-border bg-background p-1">

@@ -95,7 +95,7 @@ export function TeacherActivityPage() {
         toast({
           title: 'Enregistré',
           description: editorProvider === 'vittascience'
-            ? 'L’activité a été enregistrée avec l’éditeur Vittascience du module.'
+            ? 'L’activité a été enregistrée avec l’éditeur du module.'
             : 'Les modifications et le programme local ont été enregistrés avec succès.'
         });
         lastSaved.current = {
@@ -168,7 +168,7 @@ export function TeacherActivityPage() {
               onClick={() => setEditorProvider('vittascience')}
               className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${editorProvider === 'vittascience' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
             >
-              <Globe2 size={14} /> Vittascience
+              <Globe2 size={14} /> Éditeur officiel
             </button>
             <button
               type="button"
@@ -237,7 +237,7 @@ export function TeacherActivityPage() {
             onChange={(e) => setInstructions(e.target.value)}
           />
           <p className="mt-5 border-t border-border pt-4 text-[11px] leading-relaxed text-muted-foreground">
-            L’éditeur officiel Vittascience est sélectionné automatiquement selon le module de l’activité. Il fournit les blocs, le code et le simulateur sans lien de projet.
+            L’éditeur officiel est sélectionné automatiquement selon le module de l’activité. Il fournit les blocs, le code et le simulateur sans lien de projet.
           </p>
         </aside>
         

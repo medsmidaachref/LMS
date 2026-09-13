@@ -53,7 +53,7 @@ export function VittascienceEditor({ moduleSlug }: VittascienceEditorProps) {
       .then(setConfig)
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        setConfigError(error instanceof Error ? error.message : 'Configuration Vittascience indisponible.');
+        setConfigError(error instanceof Error ? error.message : 'Configuration indisponible.');
       });
 
     return () => controller.abort();
@@ -106,7 +106,7 @@ export function VittascienceEditor({ moduleSlug }: VittascienceEditorProps) {
       <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 py-2">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">
-            Éditeur Vittascience · {config?.label ?? moduleSlug}
+            Éditeur · {config?.label ?? moduleSlug}
           </p>
           <p className="truncate text-[11px] text-muted-foreground">
             {capabilityLabels.length ? capabilityLabels.join(' · ') : 'Configuration du module'}
@@ -117,7 +117,7 @@ export function VittascienceEditor({ moduleSlug }: VittascienceEditorProps) {
             type="button"
             onClick={reload}
             className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Recharger l’éditeur Vittascience"
+            aria-label="Recharger l’éditeur"
             title="Recharger"
           >
             <RefreshCw size={15} />
@@ -130,14 +130,14 @@ export function VittascienceEditor({ moduleSlug }: VittascienceEditorProps) {
           <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-background">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="animate-spin text-primary" size={20} />
-              Récupération de la configuration Vittascience…
+              Récupération de la configuration…
             </div>
           </div>
         )}
         {configError ? (
           <div className="absolute inset-0 grid place-items-center bg-background p-6 text-center">
             <div className="max-w-md">
-              <p className="text-sm font-semibold text-foreground">Interface Vittascience indisponible</p>
+              <p className="text-sm font-semibold text-foreground">Interface indisponible</p>
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{configError}</p>
               <button
                 type="button"
@@ -154,7 +154,7 @@ export function VittascienceEditor({ moduleSlug }: VittascienceEditorProps) {
               <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-background">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="animate-spin text-primary" size={20} />
-                  Chargement de l’éditeur Vittascience…
+                  Chargement de l’éditeur…
                 </div>
               </div>
             )}
@@ -162,7 +162,7 @@ export function VittascienceEditor({ moduleSlug }: VittascienceEditorProps) {
               ref={iframeRef}
               key={reloadKey}
               src={editorUrl}
-              title={`Éditeur Vittascience ${config.label}`}
+              title={`Éditeur ${config.label}`}
               onLoad={() => setLoaded(true)}
               className="h-full w-full border-0"
               allow="camera; microphone; serial; usb; bluetooth; clipboard-read; clipboard-write; fullscreen"
@@ -176,12 +176,7 @@ export function VittascienceEditor({ moduleSlug }: VittascienceEditorProps) {
       <div className="flex shrink-0 items-start gap-2 border-t border-sky-200 bg-sky-50 px-4 py-2 text-[11px] leading-relaxed text-sky-900">
         <span className="mt-0.5 shrink-0 text-sm">✓</span>
         <p>
-          Interface officielle Vittascience chargée depuis le dépôt GitHub avec les blocs, le code et le simulateur concernés.
-          {config && (
-            <>
-              {' '}Source : <a className="font-semibold underline" href={config.source.repositoryUrl} target="_blank" rel="noreferrer">vittascience/interfaces</a>.
-            </>
-          )}
+          Interface officielle chargée depuis le dépôt GitHub avec les blocs, le code et le simulateur concernés.
         </p>
       </div>
     </div>
